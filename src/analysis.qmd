@@ -1,0 +1,333 @@
+---
+title: "Second Life Donation Analysis"
+author: "Siru Wu"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+---
+
+
+```{python}
+import pandas as pd
+import plotly.express as px
+
+df = pd.read_csv("../data/cleaned_contacts.csv")
+```
+
+# 1. Structural analysis
+
+## Chart 1: Distribution of Contact Types
+```{python}
+type_counts = df['type'].str.strip().str.lower().value_counts().reset_index()
+type_counts.columns = ['type', 'count']
+
+fig1 = px.pie(
+    type_counts, values='count', names='type',
+    title='Distribution of Contact Types (Non-profit vs For-profit)',
+    hole=0.4
+)
+fig1.show()
+```
+
+This pie chart illustrates the breakdown of all contacts into non-profit and for-profit organizations. The majority of contacts (over 70\%) are for-profit, while only around 18.6\% are non-profits. This imbalance suggests that outreach efforts may currently be overrepresented in the private sector. To align better with the donation goals of Second Life, which likely benefit more from socially driven institutions, a stronger focus on non-profit organizations may be needed in future outreach.
+
+## Chart 2: Outreach Type Distribution
+
+```{python}
+outreach_counts = df['outreach_type'].dropna().str.strip().value_counts().reset_index()
+outreach_counts.columns = ['outreach_type', 'count']
+
+fig2 = px.bar(
+    outreach_counts, x='outreach_type', y='count',
+    title='Distribution of Outreach Types',
+    labels={'outreach_type': 'Outreach Type', 'count': 'Count'}
+)
+fig2.show()
+```
+
+This bar chart shows the distribution of declared outreach types. "**Type 6: Finanzielle Spende**" (financial donation) and "**Type 3: financial donation**" are among the most common, indicating a high interest in financial-based collaboration. Other types like "material donation", "grant", and "private donation" are also represented. 
+
+## Chart 3: Top 10 Country Distribution
+```{python}
+country_counts = df['location'].dropna().str.strip().str.title().value_counts().reset_index()
+country_counts.columns = ['location', 'count']
+
+top_countries = country_counts.head(10)
+
+fig3 = px.bar(
+    top_countries, x='location', y='count',
+    title='Top 10 Countries by Number of Contacts',
+    labels={'location': 'Country', 'count': 'Number of Contacts'}
+)
+fig3.show()
+```
+
+This chart displays the **Top 10 Countries by Number of Contacts**.
+Germany stands out as the dominant country, with more than 50 contacts—over twice the number of the next highest, the USA (around 21 contacts). France, Great Britain, Austria, and Denmark follow with much smaller counts, each below 10. The remaining countries, such as Sweden, Switzerland, and Germany/France joint entries, have minimal representation.
+
+## Chart 4: National Non-profit Ratio
+
+```{python}
+non_profit_ratio = (
+    df.dropna(subset=['location', 'type'])
+    .assign(location=lambda x: x['location'].str.strip().str.title())
+    .groupby('location')
+    .apply(lambda g: (g['type'].str.lower() == 'non profit').mean())
+    .reset_index(name='non_profit_ratio')
+    .sort_values(by='non_profit_ratio', ascending=False)
+)
+
+fig_ratio = px.bar(
+    non_profit_ratio.head(10),
+    x='location', y='non_profit_ratio',
+    title='Top 10 Countries by Non-profit Ratio',
+    labels={'location': 'Country', 'non_profit_ratio': 'Non-profit Ratio'}
+)
+fig_ratio.show()
+```
+
+This chart shows the Top 10 Countries by Non-profit Ratio.
+Here, the Netherlands leads with a 100% non-profit representation among its contacts, followed by Denmark at around 67%. The rest of the countries, such as Germany, Great Britain, and the USA, have significantly lower non-profit ratios, suggesting a more mixed composition of organization types.
+
+## Chart 5: Countries without Outreach
+
+```{python}
+not_contacted_countries = (
+    df[df['is_contacted'] == False]['location']
+    .dropna()
+    .str.strip()
+    .str.title()
+    .value_counts()
+    .reset_index()
+)
+not_contacted_countries.columns = ['location', 'count']
+
+fig_not_contacted = px.bar(
+    not_contacted_countries.head(10),
+    x='location', y='count',
+    title='Top 10 Countries with No Outreach',
+    labels={'location': 'Country', 'count': 'Number of Uncontacted Contacts'}
+)
+fig_not_contacted.show()
+
+```
+
+The second chart presents the Top 10 Countries with No Outreach.
+Germany has the highest number of uncontacted organizations (31), followed by the USA (14). Other countries like France, Great Britain, and Austria have smaller but still notable numbers of uncontacted contacts. This highlights where outreach efforts are currently lacking and may help prioritize future engagement.
+
+
+```{python}
+status_by_type = df.groupby(['type', 'current_status']).size().reset_index(name='count')
+```
+
+## Chart 6: current_status distribution (by Type)
+
+```{python}
+fig4 = px.bar(
+    status_by_type,
+    x='type', y='count', color='current_status',
+    title='Contact Status by Organization Type',
+    labels={'type': 'Contact Type', 'count': 'Number of Contacts', 'current_status': 'Status'},
+    barmode='stack'
+)
+fig4.show()
+```
+
+This stacked bar chart compares the outreach progress across different types of organizations: non-profit, for-profit, and small grants.
+
+The majority of outreach efforts have been directed toward for-profit organizations, with over 90\% of them at the "first outreach" stage. A small fraction has progressed to "contact established" or received a "response".
+
+In contrast, non-profit organizations remain significantly under-contacted, with very few entries across all statuses. This is notable given that non-profits may be more mission-aligned for donation partnerships.
+
+Small grants appear moderately engaged, but still show a low volume of contact activity overall.
+
+## Chart 7: Response Rate by Contact Type
+
+```{python}
+# Create a field: Is there a "response"
+df['has_response'] = df['current_status'].str.lower().str.contains('response')
+
+# Calculate response rate by type group
+response_by_type = df.groupby('type')['has_response'].mean().reset_index()
+
+import plotly.express as px
+fig_response = px.bar(
+    response_by_type,
+    x='type', y='has_response',
+    title='Response Rate by Contact Type',
+    labels={'type': 'Contact Type', 'has_response': 'Response Rate'},
+    text_auto='.0%',
+    color='type'
+)
+fig_response.update_layout(yaxis_tickformat='.0%')
+fig_response.show()
+```
+
+This bar chart illustrates the response rate across different contact types:
+
+**Small grants** organizations show the highest engagement, with a 25\% response rate.
+
+**For-profit** entities responded at only 5%, indicating limited interest or effectiveness in outreach efforts.
+
+**Non-profit** organizations and private individuals currently show no recorded responses.
+
+Response activity is concentrated within grant-making organizations. 
+
+## Chart 8: Outreach Funnel – From Contact to Response
+
+```{python}
+total = len(df)
+contacted = df['is_contacted'].sum()
+responded = df['current_status'].str.lower().str.contains('response').sum()
+
+funnel_data = pd.DataFrame({
+    'Stage': ['Total Contacts', 'Contacted', 'Responded'],
+    'Count': [total, contacted, responded]
+})
+
+fig_funnel = px.funnel(
+    funnel_data,
+    x='Count', y='Stage',
+    title='Outreach Funnel: From Contact to Response'
+)
+fig_funnel.show()
+```
+
+This funnel chart visualizes the outreach process from initial contacts to actual responses:
+
+- 194 total contacts in the database.
+
+- Only 44 have been contacted so far (~23% outreach coverage).
+
+- Only 3 have responded, yielding an overall response rate of 1.5% (or ~6.8% of those contacted).
+
+There is a significant drop-off between each stage of the outreach funnel. The largest gap occurs between **“Contacted”** → **“Responded”**, which highlights weak conversion effectiveness. 
+
+We can consider: 
+
+- Personalizing initial messages further;
+
+- Clarifying the ask or proposal;
+
+- Establishing a follow-up mechanism (e.g., scheduled reminders or a second email touchpoint).
+
+# 2. Strategy Analysis
+
+## Chart 1: Top 10 Countries: All vs Unassigned Contacts
+
+```{python}
+ideal_df = df[df['is_ideal_candidate'] == True]
+```
+
+```{python}
+df['location'] = df['location'].astype(str).str.strip().str.title()
+
+df_all = df.groupby('location').size().reset_index(name='count_all')
+
+df_unassigned = (
+    df[df['responsible'].isna()]
+    .groupby('location')
+    .size()
+    .reset_index(name='count_unassigned')
+)
+
+df_merged = pd.merge(df_all, df_unassigned, on='location', how='outer').fillna(0)
+
+top_countries = df_merged.sort_values('count_all', ascending=False).head(10)
+
+top_countries_melted = top_countries.melt(
+    id_vars='location',
+    value_vars=['count_all', 'count_unassigned'],
+    var_name='Type',
+    value_name='Count'
+)
+
+top_countries_melted['Type'] = top_countries_melted['Type'].map({
+    'count_all': 'All Contacts',
+    'count_unassigned': 'Unassigned Contacts'
+})
+
+fig = px.bar(
+    top_countries_melted,
+    x='location', y='Count',
+    color='Type',
+    barmode='group',
+    title='Top 10 Countries: All vs Unassigned Contacts',
+    labels={'location': 'Country', 'Count': 'Number of Contacts'}
+)
+fig.show()
+```
+
+This chart **"Top 10 Countries: All vs Unassigned Contacts"**, compares the total number of contacts (`All Contacts`) with those that do not have a responsible person assigned (`Unassigned Contacts`) for the top 10 countries.
+
+From the chart:
+
+* Some countries (e.g., **Germany**, **USA**) have a noticeable gap between all contacts and unassigned contacts, meaning a good portion is already assigned.
+* In other countries — or where `country` is missing (`NaN`) — the number of unassigned contacts is very high, sometimes almost equal to the total contacts.
+* This pattern suggests that certain regions may require better resource allocation to ensure high-value contacts do not remain without follow-up responsibility.
+
+## Chart 2: Language usability analysis
+
+```{python}
+language_counts = (
+    df['language']
+    .dropna().str.strip().str.title()
+    .value_counts()
+    .reset_index()
+)
+language_counts.columns = ['Language', 'Count']
+
+fig_language = px.pie(
+    language_counts,
+    names='Language', values='Count',
+    title='Language Distribution of Contacts'
+)
+fig_language.show()
+
+# Calculating English coverage
+english_count = language_counts.loc[language_counts['Language'] == 'English', 'Count'].sum()
+total_count = language_counts['Count'].sum()
+english_ratio = english_count / total_count * 100
+print(f"English Coverage: {english_ratio:.1f}%")
+```
+
+This pie chart shows the proportion of contacts by their preferred language.
+
+* **English** and **German** each account for **42.9%** of contacts, suggesting an almost even split between the two languages.
+* The remaining **14.3%** fall under the "Depending" category, which may indicate language choice based on context or mixed-language communication.
+
+This distribution highlights the importance of providing bilingual (English and German) outreach, while also accommodating a smaller group requiring flexible language handling.
+
+
+## Chart 3: Contact channel quality analysis
+
+```{python}
+df['has_email'] = df['contact_information'].str.contains('@', na=False)
+df['has_website'] = df['contact_information'].str.contains('http', na=False)
+
+contact_quality = df.groupby('type').agg(
+    email_available=('has_email', 'mean'),
+    website_available=('has_website', 'mean')
+).reset_index()
+
+contact_quality['email_available'] *= 100
+contact_quality['website_available'] *= 100
+
+fig_contact_quality = px.bar(
+    contact_quality.melt(id_vars='type', var_name='Channel', value_name='Availability (%)'),
+    x='type', y='Availability (%)', color='Channel',
+    title='Contact Information Availability by Contact Type',
+    barmode='group'
+)
+fig_contact_quality.show()
+```
+
+This chart compares how often email and website details are available for different types of contacts.
+
+* **Non-profit** and **for-profit** organizations have the highest email availability (\~50% and \~44% respectively), but very low website availability (\~2–3%).
+* **Private persons** have moderate email availability (\~31%) but almost no website information.
+* **Small grants** contacts show a different pattern, with higher website availability (\~33%) than email availability (\~22%).
+
+Overall, email is the dominant channel for most contact types, except in the small grants category where websites are more common.
