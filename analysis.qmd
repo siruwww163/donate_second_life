@@ -1,0 +1,132 @@
+
+## Clustering
+
+### **1. Objective**
+
+The primary goal of this phase is to segment 200+ potential donor companies to identify meaningful patterns for outreach prioritization.
+By clustering companies with similar characteristics, we aim to:
+
+* Distinguish high-, medium-, and low-potential donor groups.
+* Design more targeted email strategies for each segment.
+* Lay the foundation for AI-assisted A/B testing in subsequent phases.
+
+---
+
+### **2. Data Summary**
+
+* **Data Source:** “Finance Department Contact Sheet” provided by Second Life e.V.
+* **Total Records:** 194 companies
+* **Key Features Used for Clustering:**
+
+  * Company type (`for-profit`, `non-profit`, `small grants`)
+  * Outreach type (financial, material, grant, sponsorship, etc.)
+  * Location (country or region)
+  * Contacted status (`is_contacted`)
+  * Availability of contact info (`has_contact_info`)
+  * English-language support (`is_english`)
+
+---
+
+### **3. Methodology**
+
+1. **Data Cleaning:**
+
+   * Standardized column names, unified formats, filled categorical missing values with `"unknown"`.
+   * Converted `first_outreach` to `datetime`.
+   * Added boolean flags (`is_contacted`, `has_contact_info`, `is_english`, `is_ideal_candidate`).
+   * Removed empty columns (`nan`, `nan.1`).
+
+2. **Feature Encoding & Scaling:**
+
+   * One-hot encoding for categorical fields (`type`, `outreach_type`, `location`).
+   * Standardized all numerical/boolean features using `StandardScaler`.
+
+3. **Clustering:**
+
+   * Model: **K-Means** (k=3, random_state=42).
+   * Evaluation Metric: **Silhouette Score = 0.304**, indicating fair separation among groups.
+
+---
+
+### **4. Results & Interpretation**
+
+#### **Cluster Summary**
+
+| Cluster | % Contacted | % With Contact Info | % English | Interpretation                                                                  |
+| ------- | ----------- | ------------------- | --------- | ------------------------------------------------------------------------------- |
+| **0**   | 0.0%        | 5.9%                | 0.0%      | Low-potential group — mostly uncontacted, limited info, non-English companies   |
+| **1**   | 25.0%       | 95.8%               | 4.2%      | Medium-potential — well-documented for-profit companies, partly engaged         |
+| **2**   | 44.7%       | 97.6%               | 2.3%      | High-potential — mostly contacted, structured NGOs or socially engaged entities |
+
+#### **Representative Companies**
+
+| Cluster | Examples                                                                                              |
+| ------- | ----------------------------------------------------------------------------------------------------- |
+| 0       | H&M, Kaiser Werft / Boote Pfister, Köhle & Partner Yachtfinanzierung                                  |
+| 1       | Airbnb, Allbirds (shoes), Athletic Greens                                                             |
+| 2       | Action for Nature Youth Eco-Hero Award, AIMI Kids, Aldi Süd - Regionalgesellschaft Mühldorf/Karlsdorf |
+
+**Key Insights:**
+
+* Cluster 0 contains mainly large commercial or local German firms with limited outreach records — *likely cold leads*.
+* Cluster 1 includes high-profile consumer brands with clear communication channels — *potential partners for campaigns*.
+* Cluster 2 aligns strongly with NGO or award-based organizations — *strategically aligned with Second Life’s mission*.
+
+---
+
+#### **5. Recommendations**
+
+1. **Prioritize Cluster 2** for early-stage outreach (highest engagement potential).
+2. **Design differentiated communication strategies:**
+
+   * Cluster 0 → Awareness emails, short introduction to Second Life’s mission.
+   * Cluster 1 → Partnership-driven, impact-oriented messaging.
+   * Cluster 2 → Collaboration invitation or social impact co-branding.
+3. **Integrate AI Email Generation (Next Phase):**
+
+   * Use GPT API to generate 3–4 email templates per cluster with varied tones (formal, conversational, storytelling).
+   * Conduct **A/B tests within clusters** to compare response rates.
+4. **Feedback Loop:**
+
+   * Apply topic modeling or sentiment analysis on replies.
+   * Refine templates iteratively based on NLP insights.
+
+---
+
+### **6. Next Steps (Phase 2 Plan)**
+
+| Step | Task                                                      | Tool                                     |
+| ---- | --------------------------------------------------------- | ---------------------------------------- |
+| 1    | Generate email templates per cluster using OpenAI GPT API | `src/llm_generation/generate_emails.py`  |
+| 2    | Conduct A/B testing (controlled within clusters)          | Email automation tools / manual tracking |
+| 3    | Analyze responses (topic & sentiment modeling)            | Python NLP pipeline                      |
+| 4    | Iterate and refine personalized templates                 | GPT feedback loop                        |
+
+---
+
+### **7. Deliverables for Next Meeting**
+
+* Updated dataset: `clustered_contacts.csv`
+* Email template drafts per cluster (3–4 each)
+* Initial A/B testing plan (hypothesis + sample split)
+
+---
+
+### **8. Appendix**
+
+**Model summary:**
+
+```text
+KMeans(n_clusters=3, random_state=42, n_init=10)
+Silhouette Score = 0.304
+```
+
+**Data files:**
+
+```
+data/raw/Finance Dep. Contact sheet.xlsx
+data/processed/cleaned_contacts.csv
+data/processed/clustered_contacts.csv
+```
+
+---
